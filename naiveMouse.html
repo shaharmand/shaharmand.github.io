@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cat and Mouse Simulation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        body { text-align: center; }
+    </style>
+</head>
+<body>
+    <script>
+        // Constants
+        const cv = 4; // Cat speed
+        const mv = 1; // Mouse speed
+        const R = 100; // Radius of the pool (scaled for visibility)
+        let ctheta = 0; // Starting angular position of cat
+        let mtheta = Math.PI / 2; // Starting angular position of mouse
+        let t = 0;
+        const dt = 0.5; // Time step
+
+        // Variables for cat and mouse positions
+        let catPos, mousePos;
+
+        // Array to store mouse trail positions
+        let mouseTrail = [];
+
+        function setup() {
+            createCanvas(400, 400);
+            catPos = createVector(R * cos(ctheta), R * sin(ctheta));
+            mousePos = createVector(0.1*R * cos(mtheta), 0.1*R * sin(mtheta));
+        }
+
+        function draw() {
+            background(255);
+
+            // Draw pool
+            ellipse(width / 2, height / 2, 2 * R, 2 * R);
+
+            // Update positions
+            updateCat();
+            updateMouse();
+
+            // Draw cat
+            fill(0, 255, 0); // Cat color (green)
+            ellipse(catPos.x + width / 2, catPos.y + height / 2, 20, 20);
+
+            // Draw mouse
+            fill(255, 0, 0); // Mouse color (red)
+            ellipse(mousePos.x + width / 2, mousePos.y + height / 2, 10, 10);
+
+            stroke(0, 255, 0); // Arrow color (green)
+            strokeWeight(2); // Set the thickness of the trail
+            line(catPos.x + width / 2, catPos.y + height / 2, mousePos.x + width / 2, mousePos.y + height / 2);
+
+            let vectorToCat = p5.Vector.sub(catPos, mousePos);
+    
+            // Invert and scale the vector for the arrow
+            let arrowVector = vectorToCat.copy().normalize().mult(-20); // Adjust 20 to your preferred arrow length
+
+            // Calculate the end point of the arrow
+            let arrowEndPoint = p5.Vector.add(mousePos, arrowVector);
+
+            // Draw the arrow
+            drawArrow(mousePos, arrowEndPoint,arrowVector);
+
+
+            // Draw mouse trail
+            stroke(0, 0, 255); // Red color for trail
+            strokeWeight(2); // Set the thickness of the trail
+            noFill();
+            beginShape();
+            for (let i = 0; i < mouseTrail.length; i++) {
+                let x = mouseTrail[i].x + width / 2;
+                let y = mouseTrail[i].y + height / 2;
+
+                // Log coordinates for debugging
+                //console.log("Vertex " + i + ": (" + x + ", " + y + ")");
+
+                vertex(x, y);
+            }
+            
+            endShape();
+          
+
+
+            // Increment time
+            t += dt;
+            if (t >= 2000) noLoop(); // Stop after 60 seconds
+        }
+
+        function updateCat() {
+            let rcm = p5.Vector.sub(mousePos, catPos);
+            let crossZ = catPos.x * rcm.y - catPos.y * rcm.x;
+            let distance = rcm.mag();
+            const crossZThreshold = 100 /* some small value */;
+            const distanceThreshold = R/* your specified radius */;
+
+            // Check if mouse is aligned and close to the cat
+            if (Math.abs(crossZ) < crossZThreshold && distance < distanceThreshold) {
+                return; // Stop the function, so mouse position doesn't update
+            } else {
+            let omegaCat = (crossZ >= 0 ? 1 : -1) * cv / R;
+            if (crossZ < 1 && crossZ > 1) omegaCat = 0;
+            //console.log("crossZ: " + crossZ + " omegaCat: "+omegaCat);
+            ctheta += omegaCat * dt;
+            catPos = createVector(R * cos(ctheta), R * sin(ctheta));
+            }
+        }
+
+        function updateMouse() {
+            
+            //update mouse away from cat 
+            let rcm = p5.Vector.sub(mousePos, catPos);
+            let mouseVel = p5.Vector.normalize(rcm).mult(mv);
+            
+
+            //let catRelativeToCenter = p5.Vector.sub(catPos, createVector(width / 2, height / 2));
+            //let oppositePoint = catRelativeToCenter.copy().mult(-1).sub(createVector(width / 2, height / 2));
+            //console.log("catPos: " + catPos);
+            //console.log("catRelativeToCenter: " + catRelativeToCenter);
+            //console.log("oppositePoint: " + oppositePoint);
+
+            //fill(255, 0, 0); // Mouse color (red)
+            //ellipse(oppositePoint.x + width/2  , oppositePoint.y + height/2, 5, 5);
+            //line(catPos.x+ width/2,catPos.y + height/2, oppositePoint.x + width/2, oppositePoint.y + height/2);
+
+            
+
+
+            // Orient the mouse towards the opposite point
+            //let directionToOpposite = p5.Vector.sub(oppositePoint,mousePos);
+            //let mouseVel = directionToOpposite.normalize().mult(mv);
+            mousePos.add(p5.Vector.mult(mouseVel, dt));
+
+
+            //let arrowVector = directionToOpposite.copy().normalize().mult(50); // Adjust 20 to your preferred arrow length
+
+            // Calculate the end point of the arrow
+            //let arrowEndPoint = p5.Vector.add(mousePos, arrowVector);
+
+            // Draw the arrow
+            //drawArrow(mousePos, arrowEndPoint,arrowVector);
+
+
+
+            // Add current position to the trail
+            mouseTrail.push(mousePos.copy());
+          
+
+            // Optional: Limit the length of the trail
+            if (mouseTrail.length > 1000) {
+                mouseTrail.shift();
+            }
+        }
+        function drawArrow(start, end, arrowVector) {
+                stroke(0, 255, 0); // Arrow color (green)
+                strokeWeight(2); // Arrow thickness
+
+                // Draw arrow shaft
+                line(start.x + width / 2, start.y + height / 2, end.x + width / 2, end.y + height / 2);
+
+                // Draw arrowhead
+                push(); // Start a new drawing state
+                translate(end.x + width / 2, end.y + height / 2);
+                rotate(arrowVector.heading());
+                let arrowSize = 7; // Adjust arrowhead size
+                line(0, 0, -arrowSize, -arrowSize);
+                line(0, 0, -arrowSize, arrowSize);
+                pop(); // Restore original state
+            }
+    </script>
+</body>
+</html>
